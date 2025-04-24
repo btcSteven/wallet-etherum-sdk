@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YAWWallet Test</title>
+</head>
+<body>
+  <h1>YAWWallet Test</h1>
+  <button id="requestAccounts">Request Accounts</button>
+  <button id="sendTransaction">Send Transaction</button>
+  <button id="switchChain">Switch Chain</button>
+
+  <!-- 引入打包后的库 -->
+  <script src="./dist/yaw.umd.js"></script>
+
+  <script>
+    // 点击请求账户按钮时请求连接钱包
+    document.getElementById('requestAccounts').addEventListener('click', async () => {
+      try {
+        // 使用 window.ethereum.request 请求账户
+        const accounts = await window.ethereum.request({
+          method: 'eth_requestAccounts',
+        });
+        console.log('Connected accounts:', accounts);
+      } catch (error) {
+        console.error('Error requesting accounts:', error);
+      }
+    });
+
+    // 发送交易
+    document.getElementById('sendTransaction').addEventListener('click', async () => {
+      try {
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: '0xAddress', to: '0xRecipient', value: '0xAmount' }]
+        });
+        console.log('Transaction hash:', txHash);
+      } catch (error) {
+        console.error('Error sending transaction:', error);
+      }
+    });
+
+    // 切换链
+    document.getElementById('switchChain').addEventListener('click', async () => {
+      try {
+        const response = await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x1' }]
+        });
+        console.log('Chain switched:', response);
+      } catch (error) {
+        console.error('Error switching chain:', error);
+      }
+    });
+  </script>
+</body>
+</html>
