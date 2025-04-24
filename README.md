@@ -29,7 +29,7 @@ SDK is designed to work seamlessly with existing DApps. It implements the standa
 ```javascript
 import Web3 from 'web3';
 
-// Initialize Web3 with GawWallet
+// Initialize Web3 with SDK
 const web3 = new Web3(window.ethereum);
 
 // Use Web3 methods
@@ -42,7 +42,7 @@ const balance = await web3.eth.getBalance(accounts[0]);
 ```javascript
 import { ethers } from 'ethers';
 
-// Initialize ethers with GawWallet
+// Initialize ethers with SDK
 const provider = new ethers.BrowserProvider(window.ethereum);
 const signer = await provider.getSigner();
 
@@ -66,14 +66,14 @@ function MyDApp() {
 
 ### Third-Party Aggregator Integration
 
-GawWallet is fully compatible with popular third-party aggregators:
+SDK is fully compatible with popular third-party aggregators:
 
 #### RabbitKit Integration
 
 ```javascript
 import { RabbitKit } from 'rabbitkit';
 
-// Initialize RabbitKit with GawWallet
+// Initialize RabbitKit with SDK
 const rabbitKit = new RabbitKit({
   provider: window.ethereum,
   // ... other options
@@ -92,7 +92,7 @@ const routes = await rabbitKit.getRoutes({
 ```javascript
 import { Reown } from 'reown';
 
-// Initialize Reown with GawWallet
+// Initialize Reown with SDK
 const reown = new Reown({
   provider: window.ethereum,
   // ... other options
