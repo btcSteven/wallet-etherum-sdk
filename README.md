@@ -1,6 +1,6 @@
 # Wallet SDK
 
-A hosted Ethereum wallet SDK that provides seamless integration with Web3 applications through window injection.
+A hosted Ethereum wallet SDK that provides seamless integration with Web3 applications through window injection. Fully compatible with existing DApps and Web3 libraries.
 
 ## Features
 
@@ -10,6 +10,52 @@ A hosted Ethereum wallet SDK that provides seamless integration with Web3 applic
 - 💼 Account management
 - 🔄 Chain switching
 - 📊 Balance and block queries
+- 🌐 Seamless DApp integration
+- 🔌 MetaMask compatibility
+
+## DApp Integration
+
+GawWallet is designed to work seamlessly with existing DApps. It implements the standard Ethereum Provider interface (EIP-1193), making it compatible with popular Web3 libraries:
+
+### Web3.js Integration
+
+```javascript
+import Web3 from 'web3';
+
+// Initialize Web3 with GawWallet
+const web3 = new Web3(window.ethereum);
+
+// Use Web3 methods
+const accounts = await web3.eth.getAccounts();
+const balance = await web3.eth.getBalance(accounts[0]);
+```
+
+### ethers.js Integration
+
+```javascript
+import { ethers } from 'ethers';
+
+// Initialize ethers with GawWallet
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+
+// Use ethers methods
+const balance = await provider.getBalance(await signer.getAddress());
+```
+
+### React Integration
+
+```javascript
+import { useWeb3React } from '@web3-react/core';
+
+function MyDApp() {
+  const { account, chainId, library } = useWeb3React();
+
+  // Use Web3React hooks
+  const balance = useBalance(account);
+  const { sendTransaction } = useTransaction();
+}
+```
 
 ## Prerequisites
 
@@ -67,6 +113,28 @@ window.ethereum.on('chainChanged', (chainId) => {
   console.log('Chain changed:', chainId);
 });
 ```
+
+## Testing
+
+After building the SDK, you can test it using the provided `test.html`:
+
+1. Build the SDK:
+```bash
+npm run build
+```
+
+2. Open `test.html` in your browser:
+```bash
+open test.html
+```
+
+The test page includes examples of:
+- Account management
+- Transaction sending
+- Chain switching
+- Event listening
+- Error handling
+- DApp integration examples
 
 ## Configuration
 
