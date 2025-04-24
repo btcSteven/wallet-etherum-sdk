@@ -12,6 +12,7 @@ A hosted Ethereum wallet SDK that provides seamless integration with Web3 applic
 - 📊 Balance and block queries
 - 🌐 Seamless DApp integration
 - 🔌 MetaMask compatibility
+- 🤝 Third-party aggregator support (RabbitKit, Reown, etc.)
 
 ## DApp Integration
 
@@ -55,6 +56,48 @@ function MyDApp() {
   const balance = useBalance(account);
   const { sendTransaction } = useTransaction();
 }
+```
+
+### Third-Party Aggregator Integration
+
+GawWallet is fully compatible with popular third-party aggregators:
+
+#### RabbitKit Integration
+
+```javascript
+import { RabbitKit } from 'rabbitkit';
+
+// Initialize RabbitKit with GawWallet
+const rabbitKit = new RabbitKit({
+  provider: window.ethereum,
+  // ... other options
+});
+
+// Use RabbitKit methods
+const routes = await rabbitKit.getRoutes({
+  fromToken: 'ETH',
+  toToken: 'USDC',
+  amount: '1.0'
+});
+```
+
+#### Reown Integration
+
+```javascript
+import { Reown } from 'reown';
+
+// Initialize Reown with GawWallet
+const reown = new Reown({
+  provider: window.ethereum,
+  // ... other options
+});
+
+// Use Reown methods
+const quote = await reown.getQuote({
+  fromToken: 'ETH',
+  toToken: 'USDT',
+  amount: '1.0'
+});
 ```
 
 ## Prerequisites
