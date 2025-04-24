@@ -1,6 +1,12 @@
 # Wallet SDK
 
-A hosted Ethereum wallet SDK that provides seamless integration with Web3 applications through window injection. Fully compatible with existing DApps and Web3 libraries.
+A hosted Ethereum wallet SDK that helps wallet providers implement standardized Ethereum Provider interfaces (EIP-1193). This SDK enables seamless integration with Web3 applications through window injection, making your hosted wallet fully compatible with:
+
+- DApps and DeFi platforms
+- Web3 libraries (Web3.js, ethers.js, etc.)
+- Third-party aggregators (RabbitKit, Reown, etc.)
+- MetaMask-compatible applications
+- Cross-chain bridges and protocols
 
 ## Features
 
@@ -16,7 +22,7 @@ A hosted Ethereum wallet SDK that provides seamless integration with Web3 applic
 
 ## DApp Integration
 
-GawWallet is designed to work seamlessly with existing DApps. It implements the standard Ethereum Provider interface (EIP-1193), making it compatible with popular Web3 libraries:
+SDK is designed to work seamlessly with existing DApps. It implements the standard Ethereum Provider interface (EIP-1193), making it compatible with popular Web3 libraries:
 
 ### Web3.js Integration
 
@@ -165,169 +171,3 @@ After building the SDK, you can test it using the provided `test.html`:
 ```bash
 npm run build
 ```
-
-2. Open `test.html` in your browser:
-```bash
-open test.html
-```
-
-The test page includes examples of:
-- Account management
-- Transaction sending
-- Chain switching
-- Event listening
-- Error handling
-- DApp integration examples
-
-## Configuration
-
-The SDK automatically reads configuration from `window.walletConfig`. The configuration object should include:
-
-```typescript
-{
-  uuid: string;          // Unique identifier for the wallet
-  name: string;          // Display name
-  icon: string;          // Wallet icon URL
-  rdns: string;         // Reverse DNS identifier
-  description: string;   // Wallet description
-  version: string;      // SDK version
-  rpcUrl: string;       // Default RPC endpoint
-  defaultChainId: string; // Default chain ID (hex format)
-}
-```
-
-## API Reference
-
-### Account Methods
-
-#### `eth_accounts`
-Returns the list of accounts managed by the wallet.
-
-```typescript
-const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-```
-
-#### `eth_requestAccounts`
-Requests user permission to access their accounts.
-
-```typescript
-const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-```
-
-### Transaction Methods
-
-#### `eth_sendTransaction`
-Sends a transaction.
-
-```typescript
-const txHash = await window.ethereum.request({
-  method: 'eth_sendTransaction',
-  params: [{
-    from: string,
-    to: string,
-    value: string,
-    gas: string,
-    gasPrice: string
-  }]
-});
-```
-
-### Chain Management
-
-#### `eth_chainId`
-Gets the current chain ID.
-
-```typescript
-const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-```
-
-#### `wallet_switchEthereumChain`
-Switches to a different chain.
-
-```typescript
-await window.ethereum.request({
-  method: 'wallet_switchEthereumChain',
-  params: [{ chainId: '0x1' }]
-});
-```
-
-### Query Methods
-
-#### `eth_getBalance`
-Gets the balance for an address.
-
-```typescript
-const balance = await window.ethereum.request({
-  method: 'eth_getBalance',
-  params: [address, 'latest']
-});
-```
-
-#### `eth_getBlockByNumber`
-Gets block information.
-
-```typescript
-const block = await window.ethereum.request({
-  method: 'eth_getBlockByNumber',
-  params: [blockNumber, false]
-});
-```
-
-#### `eth_getTransactionCount`
-Gets the transaction count for an address.
-
-```typescript
-const count = await window.ethereum.request({
-  method: 'eth_getTransactionCount',
-  params: [address, 'latest']
-});
-```
-
-## Events
-
-The wallet SDK supports the following events:
-
-- `chainChanged`: Triggered when the chain is changed
-- `accountsChanged`: Triggered when the accounts are changed
-- `connect`: Triggered when the wallet is connected
-- `disconnect`: Triggered when the wallet is disconnected
-
-```typescript
-// Listen to chain changes
-window.ethereum.on('chainChanged', (chainId) => {
-  console.log('Chain changed:', chainId);
-});
-
-// Listen to account changes
-window.ethereum.on('accountsChanged', (accounts) => {
-  console.log('Accounts changed:', accounts);
-});
-```
-
-## Development Setup
-
-1. Install dependencies:
-```bash
-yarn install
-```
-
-2. Run tests:
-```bash
-yarn test
-```
-
-## Testing
-
-The SDK includes a comprehensive test suite covering all major functionality. Run tests using:
-
-```bash
-yarn test
-```
-
-## License
-
-MIT
-
-## Support
-
-For support, please open an issue in the GitHub repository or contact our support team. 

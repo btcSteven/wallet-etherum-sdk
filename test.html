@@ -1,58 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YAWWallet Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GawWallet SDK Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
-  <h1>YAWWallet Test</h1>
-  <button id="requestAccounts">Request Accounts</button>
-  <button id="sendTransaction">Send Transaction</button>
-  <button id="switchChain">Switch Chain</button>
+    <h1>GawWallet SDK Test</h1>
+    
+    <div class="section">
+        <h2>1. Account Management</h2>
+        <button onclick="getAccounts()">Get Accounts</button>
+        <button onclick="requestAccounts()">Request Accounts</button>
+        <div class="result" id="accountResult"></div>
+    </div>
 
-  <!-- 引入打包后的库 -->
-  <script src="./dist/yaw.umd.js"></script>
+    <div class="section">
+        <h2>2. Chain Management</h2>
+        <button onclick="getChainId()">Get Chain ID</button>
+        <button onclick="switchChain()">Switch Chain</button>
+        <div class="result" id="chainResult"></div>
+    </div>
 
-  <script>
-    // 点击请求账户按钮时请求连接钱包
-    document.getElementById('requestAccounts').addEventListener('click', async () => {
-      try {
-        // 使用 window.ethereum.request 请求账户
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts',
+    <div class="section">
+        <h2>3. Transaction</h2>
+        <button onclick="sendTransaction()">Send Transaction</button>
+        <div class="result" id="transactionResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. Query Methods</h2>
+        <button onclick="getBalance()">Get Balance</button>
+        <button onclick="getBlockNumber()">Get Block Number</button>
+        <div class="result" id="queryResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. Events</h2>
+        <p>Listening to events:</p>
+        <div class="result" id="eventResult"></div>
+    </div>
+
+    <script src="dist/index.js"></script>
+    <script>
+        // 1. Account Management
+        async function getAccounts() {
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                document.getElementById('accountResult').innerHTML = `Accounts: ${JSON.stringify(accounts)}`;
+            } catch (error) {
+                document.getElementById('accountResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        async function requestAccounts() {
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                document.getElementById('accountResult').innerHTML = `Accounts: ${JSON.stringify(accounts)}`;
+            } catch (error) {
+                document.getElementById('accountResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        // 2. Chain Management
+        async function getChainId() {
+            try {
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                document.getElementById('chainResult').innerHTML = `Chain ID: ${chainId}`;
+            } catch (error) {
+                document.getElementById('chainResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        async function switchChain() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x1' }]
+                });
+                document.getElementById('chainResult').innerHTML = 'Chain switched successfully';
+            } catch (error) {
+                document.getElementById('chainResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        // 3. Transaction
+        async function sendTransaction() {
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: accounts[0],
+                        to: '0x...',
+                        value: '0x1',
+                        gas: '0x5208',
+                        gasPrice: '0x3b9aca00'
+                    }]
+                });
+                document.getElementById('transactionResult').innerHTML = `Transaction Hash: ${txHash}`;
+            } catch (error) {
+                document.getElementById('transactionResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        // 4. Query Methods
+        async function getBalance() {
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                const balance = await window.ethereum.request({
+                    method: 'eth_getBalance',
+                    params: [accounts[0], 'latest']
+                });
+                document.getElementById('queryResult').innerHTML = `Balance: ${balance}`;
+            } catch (error) {
+                document.getElementById('queryResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        async function getBlockNumber() {
+            try {
+                const blockNumber = await window.ethereum.request({ method: 'eth_blockNumber' });
+                document.getElementById('queryResult').innerHTML = `Block Number: ${blockNumber}`;
+            } catch (error) {
+                document.getElementById('queryResult').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        // 5. Events
+        window.ethereum.on('chainChanged', (chainId) => {
+            document.getElementById('eventResult').innerHTML += `<p>Chain changed: ${chainId}</p>`;
         });
-        console.log('Connected accounts:', accounts);
-      } catch (error) {
-        console.error('Error requesting accounts:', error);
-      }
-    });
 
-    // 发送交易
-    document.getElementById('sendTransaction').addEventListener('click', async () => {
-      try {
-        const txHash = await window.ethereum.request({
-          method: 'eth_sendTransaction',
-          params: [{ from: '0xAddress', to: '0xRecipient', value: '0xAmount' }]
+        window.ethereum.on('accountsChanged', (accounts) => {
+            document.getElementById('eventResult').innerHTML += `<p>Accounts changed: ${JSON.stringify(accounts)}</p>`;
         });
-        console.log('Transaction hash:', txHash);
-      } catch (error) {
-        console.error('Error sending transaction:', error);
-      }
-    });
 
-    // 切换链
-    document.getElementById('switchChain').addEventListener('click', async () => {
-      try {
-        const response = await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x1' }]
+        window.ethereum.on('connect', (info) => {
+            document.getElementById('eventResult').innerHTML += `<p>Connected: ${JSON.stringify(info)}</p>`;
         });
-        console.log('Chain switched:', response);
-      } catch (error) {
-        console.error('Error switching chain:', error);
-      }
-    });
-  </script>
+
+        window.ethereum.on('disconnect', (error) => {
+            document.getElementById('eventResult').innerHTML += `<p>Disconnected: ${error?.message || 'No error'}</p>`;
+        });
+    </script>
 </body>
 </html>
