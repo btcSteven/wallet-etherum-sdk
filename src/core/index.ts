@@ -32,10 +32,13 @@ const injectAndLockWallet = (wallet: GawWallet) => {
       _metamask: { value: { isUnlocked: () => true }, writable: false },
       _state: { 
         value: { 
-          isConnected: true,
-          accounts: wallet.accounts
+          isConnected: localStorage.getItem('gaw_wallet_connected') === 'true',
+          accounts: wallet.accounts,
+          initialized: true,
+          isPermanentlyDisconnected: false,
+          isUnlocked: true
         }, 
-        writable: false 
+        writable: true 
       },
     });
   } catch (e) {

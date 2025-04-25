@@ -16,6 +16,15 @@ interface EthereumProvider {
   isMetaMask?: boolean;
   isGawWallet?: boolean;
 
+  // Provider state
+  _state?: {
+    accounts: string[];
+    initialized: boolean;
+    isConnected: boolean;
+    isPermanentlyDisconnected: boolean;
+    isUnlocked: boolean;
+  };
+
   // EIP-1193 标准方法
   request: (args: { method: string; params?: any[] }) => Promise<any>;
   on: (event: string, callback: (...args: any[]) => void) => void;
@@ -24,27 +33,6 @@ interface EthereumProvider {
   isConnected?: () => boolean;
 }
 
-interface Window {
-  ethereum: EthereumProvider;
-  GAW: GAWInterface;  // todo update your wallet
-}
-
-
-interface EIP6963ProviderDetail {
-  info: EIP6963ProviderInfo;
-  provider: any;
-}
-
-interface PermissionObject {
-  parentCapability: string;
-  invoker: string;
-  caveats: Array<{
-    type: string;
-    value: any;
-  }>;
-}
-
- // todo your wallet Interface
 interface GAWInterface {
   address: string;
   chainId: string;
@@ -80,4 +68,23 @@ interface GAWInterface {
     primaryType: string;
     message: Record<string, any>;
   }) => Promise<string>;
+}
+
+interface Window {
+  ethereum: EthereumProvider;
+  GAW: GAWInterface;
+}
+
+interface EIP6963ProviderDetail {
+  info: EIP6963ProviderInfo;
+  provider: any;
+}
+
+interface PermissionObject {
+  parentCapability: string;
+  invoker: string;
+  caveats: Array<{
+    type: string;
+    value: any;
+  }>;
 }

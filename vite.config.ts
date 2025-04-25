@@ -1,8 +1,7 @@
 import { defineConfig } from 'vite';
-import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  plugins: [],
   server: {
     host: '0.0.0.0',  // 允许外部访问
     port: 3000,       // 设置端口
