@@ -5,7 +5,6 @@ export const walletConfig = {
   rdns: "com.xxx.xxx",
   description: "xxx Wallet - Secure Web3 Wallet",
   version: "1.0.0",
-  rpcUrl: "https://rpc.xxx",
-  defaultChainId: "0x1",
-  getConfig: () => window?.GAW,  
+  rpcUrl: "https://eth-mainnet.public.blastapi.io",  //default minnet
+  defaultChainId: "0x1", //default minnet
 };

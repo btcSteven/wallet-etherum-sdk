@@ -1,14 +1,15 @@
-import { GawWallet } from "./wallet";
+import { MainWallet } from "./wallet";
+import { Logger } from '../utils/logger';
 
 // 注入钱包并锁定
-const injectAndLockWallet = (wallet: GawWallet) => {
+const injectAndLockWallet = (wallet: MainWallet) => {
   // 检查是否已经存在 ethereum
   if (window?.ethereum) {
     const existingEthereum = window?.ethereum;
 
     // 如果已经存在且不是我们的钱包，尝试阻止其他钱包的注入
-    if (!existingEthereum.isGawWallet) {
-      console.warn("Another wallet is already injected");
+    if (!existingEthereum.isOwnWallet) {
+      Logger.warn("Wallet", "Another wallet is already injected");
       return;
     }
   }
@@ -32,7 +33,7 @@ const injectAndLockWallet = (wallet: GawWallet) => {
       _metamask: { value: { isUnlocked: () => true }, writable: false },
       _state: { 
         value: { 
-          isConnected: localStorage.getItem('gaw_wallet_connected') === 'true',
+          isConnected: localStorage.getItem('wallet_connected') === 'true',
           accounts: wallet.accounts,
           initialized: true,
           isPermanentlyDisconnected: false,
@@ -41,8 +42,9 @@ const injectAndLockWallet = (wallet: GawWallet) => {
         writable: true 
       },
     });
+    Logger.info("Wallet", "Wallet successfully injected");
   } catch (e) {
-    console.error("Failed to inject wallet:", e);
+    Logger.error("Wallet", "Failed to inject wallet:", e);
   }
 };
 
@@ -61,9 +63,9 @@ const preventOtherWalletsBroadcast = () => {
 };
 
 // 广播钱包
-const broadcastWallet = (wallet: GawWallet) => {
+const broadcastWallet = (wallet: MainWallet) => {
   // 广播钱包信息
-  const announceProvider = (wallet: GawWallet) => {
+  const announceProvider = (wallet: MainWallet) => {
     window.dispatchEvent(
       new CustomEvent("eip6963:announceProvider", {
         detail: {
@@ -94,10 +96,10 @@ const broadcastWallet = (wallet: GawWallet) => {
   // setInterval(() => announceProvider(wallet), 1000);
 };
 
-const injectGawWallet = () => {
+const injectWallet = () => {
   if (typeof window === "undefined") return;
 
-  const wallet = new GawWallet();
+  const wallet = new MainWallet();
 
   // 1. 注入钱包并锁定
   injectAndLockWallet(wallet);
@@ -109,4 +111,4 @@ const injectGawWallet = () => {
   broadcastWallet(wallet);
 };
 
-export default injectGawWallet;
+export default injectWallet;

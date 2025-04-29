@@ -1,8 +1,9 @@
-import injectGawWallet from "./core";
+import injectWallet from "./core";
 
-// 在页面加载时注入 Gaw Wallet
+// 在页面加载时注入 your Wallet
 document.addEventListener("DOMContentLoaded", () => {
-  injectGawWallet();
-  console.log("Gaw Wallet injected into window.ethereum!");
+  injectWallet();
 });
+
+export default injectWallet;
 

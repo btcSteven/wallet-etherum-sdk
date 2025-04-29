@@ -1,16 +1,19 @@
 import { ethers } from "ethers";
 import { walletConfig } from "../config";
+import { Logger } from '../utils/logger';
 
 const mockAddress = "";
 
-export class GawWallet implements EthereumProvider {
+const Wallet = () => window?.Wallet;
+
+export class MainWallet implements EthereumProvider {
   // ========== 1. 基础属性 ==========
   // EIP-1193 标准属性
-  public accounts: string[] = [walletConfig.getConfig()?.address || mockAddress];
-  public chainId: string = walletConfig.getConfig()?.chainId || walletConfig.defaultChainId;
-  public chainIds: string[] = walletConfig.getConfig()?.chainIds || [walletConfig.defaultChainId];
+  public accounts: string[] = [Wallet()?.address || mockAddress];
+  public chainId: string = Wallet()?.chainId || walletConfig.defaultChainId;
+  public chainIds: string[] = Wallet()?.chainIds || [walletConfig.defaultChainId];
   public selectedAddress: string = this.accounts[0];
-  public isGawWallet: boolean = true;
+  public isOwnWallet: boolean = true;
 
   // EIP-6963 属性
   public readonly uuid = walletConfig.uuid;
@@ -22,7 +25,7 @@ export class GawWallet implements EthereumProvider {
 
   // 状态管理
   public _state = {
-    accounts: [walletConfig.getConfig()?.address || mockAddress],
+    accounts: [Wallet()?.address || mockAddress],
     initialized: true,
     isConnected: false,
     isPermanentlyDisconnected: false,
@@ -40,27 +43,19 @@ export class GawWallet implements EthereumProvider {
     this.setupVisibilityListener();
   }
 
-  // ========== 2. 初始化相关 ==========
+  // ========== 2. 初始化 ==========
   private initializeWallet(): void {
-    const config = walletConfig.getConfig();
-    const address = config?.address || mockAddress;
-    const chainId = config?.chainId || walletConfig.defaultChainId;
+    const address = Wallet()?.address || mockAddress;
+    const chainId = Wallet()?.chainId || walletConfig.defaultChainId;
 
-    // 确保账户地址有效
-    if (!address || !ethers.isAddress(address)) {
-      console.warn("Invalid account address, using mock address");
-      this.accounts = [mockAddress];
-      this.selectedAddress = mockAddress;
-    } else {
-      this.accounts = [address];
-      this.selectedAddress = address;
-    }
+    this.accounts = [address];
+    this.selectedAddress = address;
 
     // 初始化状态，但不自动连接
     this._state = {
       accounts: this.accounts,
       initialized: true,
-      isConnected: localStorage.getItem("gaw_wallet_connected") === "true",
+      isConnected: localStorage.getItem("wallet_connected") === "true",
       isPermanentlyDisconnected: false,
       isUnlocked: true,
       isFirstConnect: true,
@@ -69,15 +64,16 @@ export class GawWallet implements EthereumProvider {
     this._connected = this._state.isConnected;
 
     // 如果之前是连接状态，则恢复连接
-    if (this._state.isConnected) {
+    if (this._connected) {
       this._handleAccountsChanged(this.accounts);
       this._handleChainChanged(chainId);
     }
 
-    // 设置Gaw监听器
-    this.setupGawListener();
+    // window.Wallet监听器
+    this.setupWalletListener();
   }
 
+  // 页面加载完成初始化
   private setupVisibilityListener(): void {
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", () => {
@@ -93,28 +89,18 @@ export class GawWallet implements EthereumProvider {
     this._connected = isConnected;
     this._state.isConnected = isConnected;
     this._state.isPermanentlyDisconnected = !isConnected;
-    localStorage.setItem("gaw_wallet_connected", isConnected.toString());
+    localStorage.setItem("wallet_connected", isConnected.toString());
   }
 
   public isConnected(): boolean {
     return this._connected && !this._state.isPermanentlyDisconnected;
   }
 
-  public get selectedAccount(): string {
-    return this.selectedAddress;
-  }
-
-  public set selectedAccount(address: string) {
-    if (address) {
-      this._handleAccountsChanged([address]);
-    }
-  }
-
   public async connect(): Promise<string[]> {
     if (!this._connected) {
       // 验证当前账户
       if (!this.accounts.length || !ethers.isAddress(this.accounts[0])) {
-        console.warn("No valid account available");
+        Logger.warn("No valid account available");
         return [];
       }
       this._updateConnectionState(true);
@@ -125,11 +111,21 @@ export class GawWallet implements EthereumProvider {
   }
 
   public disconnect(): void {
-    console.log("Wallet disconnecting...");
+    Logger.info("Wallet disconnecting...");
     this._updateConnectionState(false);
     this.notifyDisconnect(null);
     this._handleAccountsChanged([]);
     this._handleChainChanged("");
+  }
+
+  public get selectedAccount(): string {
+    return this.selectedAddress;
+  }
+
+  public set selectedAccount(address: string) {
+    if (address) {
+      this._handleAccountsChanged([address]);
+    }
   }
 
   // ========== 4. 事件系统 ==========
@@ -154,7 +150,7 @@ export class GawWallet implements EthereumProvider {
         try {
           fn(...args);
         } catch (error) {
-          console.error(`Error in ${event} event handler:`, error);
+          Logger.error(`Error in ${event} event handler:`, error);
         }
       });
     }
@@ -183,63 +179,35 @@ export class GawWallet implements EthereumProvider {
   }
 
   // ========== 5. 链管理 ==========
-  private setupGawListener(): void {
-    const config = walletConfig.getConfig();
-    if (!config || typeof config !== "object") {
-      console.warn("GAW is not initialized");
+  private setupWalletListener(): void {
+    if (!Wallet() || typeof Wallet() !== "object") {
+      Logger.warn('Wallet', 'Wallet is not initialized');
       return;
     }
 
-    // 定期检查 GAW 的变化
+    // 定期检查 window.Wallet 的变化
     if (typeof window !== "undefined") {
       setInterval(() => {
         try {
-          const newChainId = window.GAW?.chainId;
+          const newChainId = window.Wallet?.chainId;
           if (newChainId && newChainId !== this.chainId) {
             this._handleChainChanged(newChainId);
           }
 
-          const newAddress = window.GAW?.address;
+          const newAddress = window.Wallet?.address;
           if (newAddress && newAddress !== this.selectedAddress) {
             this._handleAccountsChanged([newAddress]);
           }
         } catch (error) {
-          console.error("Error checking GAW changes:", error);
+          Logger.error('Wallet', 'Error checking Wallet changes:', error);
         }
       }, 2000);
     }
   }
 
-  private async switchChain(params?: any[]): Promise<string> {
-    try {
-      const requestedChainId = params?.[0]?.chainId;
-
-      if (!requestedChainId) {
-        throw new Error("Missing chainId parameter");
-      }
-
-      if (!this.chainIds.includes(requestedChainId)) {
-        throw new Error(`Chain ID ${requestedChainId} is not supported`);
-      }
-
-      if (this.chainId === requestedChainId) {
-        console.log("Already on chain", requestedChainId);
-        return `Already on chain ${requestedChainId}`;
-      }
-
-      await walletConfig.getConfig()?.switchChain(requestedChainId);
-      this._handleChainChanged(requestedChainId);
-
-      return `Switched to chain ${requestedChainId}`;
-    } catch (error: any) {
-      console.error("Failed to switch chain:", error);
-      throw new Error(`Failed to switch chain: ${error?.message || "Unknown error"}`);
-    }
-  }
-
   // ========== 6. RPC 请求处理 ==========
   public async request({ method, params }: { method: string; params?: any[] }): Promise<any> {
-    console.log(`Request: ${method}`, "params:", params);
+    Logger.debug('Request', `${method}`, params);
     try {
       return await this.handleRequest(method, params);
     } catch (error: any) {
@@ -341,7 +309,7 @@ export class GawWallet implements EthereumProvider {
         throw new Error("Transaction must have either 'to' address or 'data' field");
       }
 
-      const hash = await walletConfig.getConfig()?.sendTransaction(tx);
+      const hash = await Wallet()?.sendTransaction(tx);
 
       if (!hash) {
         throw new Error("Failed to send transaction");
@@ -349,7 +317,7 @@ export class GawWallet implements EthereumProvider {
 
       return hash;
     } catch (error: any) {
-      console.error("Failed to send transaction:", error);
+      Logger.error('Transaction', 'Failed to send transaction:', error);
       throw new Error(`Failed to send transaction: ${error?.message || "Unknown error"}`);
     }
   }
@@ -361,7 +329,7 @@ export class GawWallet implements EthereumProvider {
         throw new Error("Transaction must have either 'to' address or 'data' field");
       }
 
-      const signedTx = await walletConfig.getConfig()?.signTransaction(tx);
+      const signedTx = await Wallet()?.signTransaction(tx);
 
       if (!signedTx) {
         throw new Error("Failed to sign transaction");
@@ -369,7 +337,7 @@ export class GawWallet implements EthereumProvider {
 
       return signedTx;
     } catch (error: any) {
-      console.error("Failed to sign transaction:", error);
+      Logger.error('Transaction', 'Failed to sign transaction:', error);
       throw new Error(`Failed to sign transaction: ${error?.message || "Unknown error"}`);
     }
   }
@@ -382,6 +350,7 @@ export class GawWallet implements EthereumProvider {
       }
 
       const [message, address] = params;
+
       // 验证地址
       if (!address || !ethers.isAddress(address)) {
         throw new Error("Invalid address for personal_sign");
@@ -390,11 +359,40 @@ export class GawWallet implements EthereumProvider {
       if (!message) {
         throw new Error("Message cannot be empty");
       }
-      if (!walletConfig.getConfig()?.personalSign) {
-        throw new Error("Sign message method not implemented");
+
+      if (!Wallet()?.personalSign) {
+        throw new Error("PersonalSign method not implemented");
       }
 
-      const signature = await walletConfig.getConfig().personalSign(message, address);
+      // 统一处理消息为字符串
+      let messageToSign: string;
+      if (typeof message === "string") {
+        if (message.startsWith("0x")) {
+          try {
+            messageToSign = ethers.toUtf8String(message);
+          } catch (e) {
+            messageToSign = message;
+          }
+        } else {
+          messageToSign = message;
+        }
+
+        // 移除已有的前缀
+        const prefix = "\x19Ethereum Signed Message:\n";
+        if (messageToSign.startsWith(prefix)) {
+          const lengthStr = messageToSign.slice(prefix.length);
+          const lengthMatch = lengthStr.match(/^\d+/);
+          if (lengthMatch) {
+            const length = parseInt(lengthMatch[0]);
+            messageToSign = lengthStr.slice(lengthMatch[0].length);
+          }
+        }
+      } else {
+        throw new Error("Message must be a string");
+      }
+
+      Logger.debug('Sign', 'Signing message:', messageToSign);
+      const signature = await Wallet().personalSign({ message: messageToSign, address });
 
       if (!signature) {
         throw new Error("Failed to sign message");
@@ -402,23 +400,34 @@ export class GawWallet implements EthereumProvider {
 
       return signature;
     } catch (error: any) {
-      console.error("Error in personal_sign:", error);
+      Logger.error('Sign', 'Error in personal_sign:', error);
       throw new Error(`personal_sign failed: ${error.message}`);
     }
   }
 
+  // sign EIP-712 格式的 typedData
   private async signTypedData(params?: any[]): Promise<string> {
     try {
       // 参数验证
-      if (!params || params.length === 0) {
+      if (!params || params.length < 2) {
         throw new Error("Missing required parameters for eth_signTypedData_v4");
       }
 
-      const typedData = params[0];
+      const [address, typedData] = params;
+
+      // 验证地址
+      if (!address || !ethers.isAddress(address)) {
+        throw new Error("Invalid address for eth_signTypedData_v4");
+      }
+
+      // 验证 typedData
+      if (!typedData || typeof typedData !== "object") {
+        throw new Error("Invalid typed data format");
+      }
 
       // 验证必要字段
-      if (!typedData?.domain || !typedData?.types || !typedData?.primaryType || !typedData?.message) {
-        throw new Error("Invalid typed data format");
+      if (!typedData.domain || !typedData.types || !typedData.primaryType || !typedData.message) {
+        throw new Error("Missing required fields in typed data");
       }
 
       // 验证 domain 字段
@@ -442,12 +451,22 @@ export class GawWallet implements EthereumProvider {
         throw new Error("Invalid message data");
       }
 
-      // 调用配置中的签名方法
-      if (!walletConfig.getConfig()?.signTypedData) {
+      // 确保 chainId 是数字
+      if (typeof domain.chainId === "string") {
+        domain.chainId = parseInt(domain.chainId);
+      }
+
+      // 确保 verifyingContract 是有效的地址
+      if (!ethers.isAddress(domain.verifyingContract)) {
+        throw new Error("Invalid verifyingContract address");
+      }
+
+      if (!Wallet()?.signTypedData) {
         throw new Error("Sign typed data method not implemented");
       }
 
-      const signature = await walletConfig.getConfig().signTypedData(typedData);
+      Logger.debug('Sign', 'Signing typed data:', typedData);
+      const signature = await Wallet().signTypedData(typedData);
 
       if (!signature) {
         throw new Error("Failed to sign typed data");
@@ -455,7 +474,7 @@ export class GawWallet implements EthereumProvider {
 
       return signature;
     } catch (error: any) {
-      console.error("Error in eth_signTypedData_v4:", error);
+      Logger.error('Sign', 'Error in eth_signTypedData_v4:', error);
       throw new Error(`eth_signTypedData_v4 failed: ${error.message}`);
     }
   }
@@ -467,8 +486,35 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.send("eth_sendRawTransaction", [rawTx]);
     } catch (error) {
-      console.error("Failed to send raw transaction", error);
+      Logger.error("Failed to send raw transaction", error);
       throw new Error("Failed to send raw transaction");
+    }
+  }
+
+  private async switchChain(params?: any[]): Promise<string> {
+    try {
+      const requestedChainId = params?.[0]?.chainId;
+
+      if (!requestedChainId) {
+        throw new Error("Missing chainId parameter");
+      }
+
+      if (!this.chainIds.includes(requestedChainId)) {
+        throw new Error(`Chain ID ${requestedChainId} is not supported`);
+      }
+
+      if (this.chainId === requestedChainId) {
+        Logger.info('Chain', 'Already on chain', requestedChainId);
+        return `Already on chain ${requestedChainId}`;
+      }
+
+      await Wallet()?.switchChain(requestedChainId);
+      this._handleChainChanged(requestedChainId);
+
+      return `Switched to chain ${requestedChainId}`;
+    } catch (error: any) {
+      Logger.error('Chain', 'Failed to switch chain:', error);
+      throw new Error(`Failed to switch chain: ${error?.message || "Unknown error"}`);
     }
   }
 
@@ -481,14 +527,14 @@ export class GawWallet implements EthereumProvider {
         {
           from: tx.from,
           to: tx.to,
-          value: tx.value ?? "0x0",
-          data: tx.data ?? "0x",
+          value: tx.value,
+          data: tx.data,
         },
       ]);
       return ethers.toBeHex(gas);
     } catch (e) {
-      console.error("Estimate Gas error", e);
-      return "0x186a0"; // fallback
+      Logger.error("Estimate Gas error", e);
+      throw new Error("Failed to estimate gas. Please check your transaction parameters or try again later");
     }
   }
 
@@ -496,8 +542,8 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.send("eth_gasPrice", []);
     } catch (e) {
-      console.error("Get Gas Price error", e);
-      return "0x3b9aca00";
+      Logger.error("Get Gas Price error", e);
+      throw new Error("Failed to get gas price. You can retry or use default value (1 Gwei)");
     }
   }
 
@@ -505,8 +551,8 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.send("eth_blockNumber", []);
     } catch (e) {
-      console.error("Get Block Number error", e);
-      return "0x1234";
+      Logger.error("Get Block Number error", e);
+      throw new Error("Failed to get block number");
     }
   }
 
@@ -518,7 +564,7 @@ export class GawWallet implements EthereumProvider {
       const balance = await this._provider.getBalance(address, blockTag);
       return "0x" + BigInt(balance).toString(16);
     } catch (error) {
-      console.error("Failed to fetch balance:", error);
+      Logger.error("Failed to fetch balance:", error);
       throw new Error("eth_getBalance failed");
     }
   }
@@ -530,7 +576,7 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.getTransaction(txHash);
     } catch (error) {
-      console.error("Error fetching transaction by hash:", error);
+      Logger.error("Error fetching transaction by hash:", error);
       throw new Error("Failed to fetch transaction by hash");
     }
   }
@@ -549,7 +595,7 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.send("eth_getTransactionReceipt", [txHash]);
     } catch (error) {
-      console.error("Failed to fetch transaction receipt:", error);
+      Logger.error("Failed to fetch transaction receipt:", error);
       throw new Error("eth_getTransactionReceipt failed");
     }
   }
@@ -569,7 +615,7 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.send("eth_call", [tx, blockTag]);
     } catch (error) {
-      console.error("Error ethcall:", error);
+      Logger.error("Error ethcall:", error);
       throw new Error("eth_call failed");
     }
   }
@@ -581,7 +627,7 @@ export class GawWallet implements EthereumProvider {
     try {
       return await this._provider.send("eth_getBlockByNumber", [blockNumber, includeTransactions]);
     } catch (error) {
-      console.error("Failed to fetch block:", error);
+      Logger.error("Failed to fetch block:", error);
       throw new Error("eth_getBlockByNumber failed");
     }
   }
@@ -654,7 +700,7 @@ export class GawWallet implements EthereumProvider {
     // 验证账户地址
     const validAccounts = accounts.filter((addr) => addr && ethers.isAddress(addr));
     if (validAccounts.length === 0) {
-      console.warn("No valid accounts provided");
+      Logger.warn("No valid accounts provided");
       return;
     }
 

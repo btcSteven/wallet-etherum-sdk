@@ -14,7 +14,7 @@ interface EthereumProvider {
   chainId?: string;
   selectedAddress?: string;
   isMetaMask?: boolean;
-  isGawWallet?: boolean;
+  isOwnWallet?: boolean;
 
   // Provider state
   _state?: {
@@ -33,7 +33,7 @@ interface EthereumProvider {
   isConnected?: () => boolean;
 }
 
-interface GAWInterface {
+interface WalletInterface {
   address: string;
   chainId: string;
   chainIds: string[];
@@ -56,7 +56,7 @@ interface GAWInterface {
     gasPrice?: string;
     nonce?: string;
   }) => Promise<string>;
-  personalSign: (message: string, address: string) => Promise<string>;
+  personalSign: (txParams: { message: string; address: string }) => Promise<string>;
   signTypedData: (params: {
     domain: {
       name: string;
@@ -72,7 +72,7 @@ interface GAWInterface {
 
 interface Window {
   ethereum: EthereumProvider;
-  GAW: GAWInterface;
+  Wallet: WalletInterface;
 }
 
 interface EIP6963ProviderDetail {

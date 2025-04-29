@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import { readFileSync } from 'fs';
+
+const packageJson = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
 
 export default defineConfig({
-  plugins: [],
   server: {
-    host: '0.0.0.0',  // 允许外部访问
-    port: 3000,       // 设置端口
+    host: '0.0.0.0',
+    port: 3000,
   },
   build: {
     lib: {
@@ -13,11 +16,15 @@ export default defineConfig({
       fileName: (format) => `yaw.${format}.js`,
     },
     rollupOptions: {
-      // 确保外部依赖不会被打包
       external: [],
       output: {
         globals: {},
+        banner: `/*! Wallet SDK VSESION ${packageJson.version} */`,
+        footer: `/*! Wallet SDK VSESION ${packageJson.version} */`,
       },
     },
+  },
+  define: {
+    'import.meta.env.PACKAGE_VERSION': JSON.stringify(packageJson.version),
   },
 });
