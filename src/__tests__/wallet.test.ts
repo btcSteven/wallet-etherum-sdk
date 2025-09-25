@@ -1,18 +1,17 @@
-import { GawWallet } from '../core/wallet';
+import { YaakoWallet } from '../core/wallet';
 
-describe('GawWallet', () => {
-  let wallet: GawWallet;
+describe('YaakoWallet', () => {
+  let wallet: YaakoWallet;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    wallet = new GawWallet();
+    wallet = new YaakoWallet();
   });
 
   describe('Initialization', () => {
     it('should initialize with default values', () => {
       expect(wallet.accounts).toEqual(['0x1234567890123456789012345678901234567890']);
       expect(wallet.chainId).toBe('0x1');
-      expect(wallet.isConnected()).toBe(false);
     });
   });
 

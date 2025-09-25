@@ -1,10 +1,16 @@
 export const walletConfig = {
-  uuid: "",
-  name: "xxx Wallet",
-  icon: "",
-  rdns: "com.xxx.xxx",
-  description: "xxx Wallet - Secure Web3 Wallet",
-  version: "1.0.0",
-  rpcUrl: "https://eth-mainnet.public.blastapi.io",  //default minnet
-  defaultChainId: "0x1", //default minnet
+  uuid: "fb9e4f6a-daf8-4b84-a8d3-e13a64e92ab1",
+  name: "Yaako Wallet",
+  icon: "https://static-s3.mtt.xyz/mtt-swap/20250423-142205_15cfe5ccd.png",
+  rdns: "com.yaako.wallet",
+  description: "Yaako Wallet - Secure Web3 Wallet",
+  version: import.meta.env.PACKAGE_VERSION,
+  rpcUrl: "https://evm-rpc.mtt.network",
+  defaultChainId: "0x1ae0",
+  whiteUrl: [
+    "uniswap.org",
+    "app.uniswap.org",
+    // "localhost"
+    // "172.30.16.141"
+  ],
 };

@@ -13,8 +13,17 @@ interface EthereumProvider {
   accounts?: string[];
   chainId?: string;
   selectedAddress?: string;
-  isMetaMask?: boolean;
-  isOwnWallet?: boolean;
+  isYaakoWallet?: boolean;
+
+  // EIP-6963 属性
+  yaako?: {
+    uuid: string;
+    name: string;
+    icon: string;
+    rdns: string;
+    description: string;
+    version: string;
+  };
 
   // Provider state
   _state?: {
@@ -26,17 +35,23 @@ interface EthereumProvider {
   };
 
   // EIP-1193 标准方法
+  enable: () => Promise<string[]>;
   request: (args: { method: string; params?: any[] }) => Promise<any>;
   on: (event: string, callback: (...args: any[]) => void) => void;
   removeListener?: (event: string, callback: (...args: any[]) => void) => void;
   emit?: (event: string, ...args: any[]) => void;
-  isConnected?: () => boolean;
+  // isConnected?: () => boolean;
+  
+  // 兼容性方法
+  send: (method: string, params?: any[]) => Promise<any>;
+  sendAsync: (payload: { method: string; params?: any[] }, callback: (error: Error | null, result?: any) => void) => Promise<void>;
 }
 
-interface WalletInterface {
+interface YAAKOInterface {
   address: string;
   chainId: string;
   chainIds: string[];
+  login?: () => Promise<void>;
   sendTransaction: (txParams: {
     from: string;
     to: string;
@@ -72,7 +87,7 @@ interface WalletInterface {
 
 interface Window {
   ethereum: EthereumProvider;
-  Wallet: WalletInterface;
+  YAAKO_WALLET: YAAKOInterface;
 }
 
 interface EIP6963ProviderDetail {

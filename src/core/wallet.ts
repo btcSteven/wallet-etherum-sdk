@@ -1,31 +1,37 @@
 import { ethers } from "ethers";
 import { walletConfig } from "../config";
-import { Logger } from '../utils/logger';
+import { Logger } from "./logger";
+import { Utils } from "./utils";
 
 const mockAddress = "";
 
-const Wallet = () => window?.Wallet;
+export class YaakoWallet implements EthereumProvider {
+  // 钱包接口
+  private walletInterface: YAAKOInterface | null = null;
+  // 保存原始的 ethereum
+  public originalEthereum: any = null;
 
-export class MainWallet implements EthereumProvider {
-  // ========== 1. 基础属性 ==========
   // EIP-1193 标准属性
-  public accounts: string[] = [Wallet()?.address || mockAddress];
-  public chainId: string = Wallet()?.chainId || walletConfig.defaultChainId;
-  public chainIds: string[] = Wallet()?.chainIds || [walletConfig.defaultChainId];
+  public accounts: string[] = [this.getYaako()?.address || mockAddress];
+  public chainId: string = this.getYaako()?.chainId || walletConfig.defaultChainId;
   public selectedAddress: string = this.accounts[0];
-  public isOwnWallet: boolean = true;
-
+  public isYaakoWallet: boolean = true;
+  public version: string = walletConfig.version;
+  public isMetaMask: boolean = true;  // 添加 isMetaMask 属性
+  
   // EIP-6963 属性
-  public readonly uuid = walletConfig.uuid;
-  public readonly name = walletConfig.name;
-  public readonly icon = walletConfig.icon;
-  public readonly rdns = walletConfig.rdns;
-  public readonly description = walletConfig.description;
-  public readonly version = walletConfig.version;
+  public readonly yaako = {
+    uuid: walletConfig.uuid,
+    name: walletConfig.name,
+    icon: walletConfig.icon,
+    rdns: walletConfig.rdns,
+    description: walletConfig.description,
+    version: walletConfig.version,
+  };
 
   // 状态管理
   public _state = {
-    accounts: [Wallet()?.address || mockAddress],
+    accounts: [this.getYaako()?.address || mockAddress],
     initialized: true,
     isConnected: false,
     isPermanentlyDisconnected: false,
@@ -37,25 +43,41 @@ export class MainWallet implements EthereumProvider {
   private _connected = false;
   private _provider: ethers.JsonRpcProvider;
 
-  constructor() {
+  constructor(walletInterface?: YAAKOInterface) {
+    this.walletInterface = walletInterface || null;
     this._provider = new ethers.JsonRpcProvider(walletConfig.rpcUrl);
+    this.originalEthereum = window.ethereum;     // 保存原始的 ethereum
     this.initializeWallet();
     this.setupVisibilityListener();
+
+    // 确保方法被正确绑定到实例
+    this.enable = this.enable.bind(this);
+    this.request = this.request.bind(this);
+    this.send = this.send.bind(this);
+    this.sendAsync = this.sendAsync.bind(this);
   }
 
-  // ========== 2. 初始化 ==========
+  private getYaako(): YAAKOInterface {
+    return this.walletInterface || window.YAAKO_WALLET;
+  }
+
+  // ========== 1. 初始化 ==========
   private initializeWallet(): void {
-    const address = Wallet()?.address || mockAddress;
-    const chainId = Wallet()?.chainId || walletConfig.defaultChainId;
+    const address = this.getYaako()?.address || mockAddress;
+    const chainId = this.getYaako()?.chainId || walletConfig.defaultChainId;
 
     this.accounts = [address];
     this.selectedAddress = address;
 
-    // 初始化状态，但不自动连接
+    // 检查当前域名是否在直连白名单中
+    const currentDomain = window.location.hostname;
+    const isWhiteListed = Utils.isDomainWhitelisted(currentDomain, walletConfig.whiteUrl || []);
+
+    // 初始化状态，白名单域名直接连接，否则根据 localStorage 状态
     this._state = {
       accounts: this.accounts,
       initialized: true,
-      isConnected: localStorage.getItem("wallet_connected") === "true",
+      isConnected: isWhiteListed || localStorage.getItem("yaako_wallet_connected") === "true",
       isPermanentlyDisconnected: false,
       isUnlocked: true,
       isFirstConnect: true,
@@ -69,8 +91,8 @@ export class MainWallet implements EthereumProvider {
       this._handleChainChanged(chainId);
     }
 
-    // window.Wallet监听器
-    this.setupWalletListener();
+    // Yaako监听器
+    this.setupYaakoListener();
   }
 
   // 页面加载完成初始化
@@ -84,38 +106,87 @@ export class MainWallet implements EthereumProvider {
     }
   }
 
-  // ========== 3. 连接状态管理 ==========
+  // ========== 2. 连接状态管理 ==========
   private _updateConnectionState(isConnected: boolean): void {
     this._connected = isConnected;
     this._state.isConnected = isConnected;
     this._state.isPermanentlyDisconnected = !isConnected;
-    localStorage.setItem("wallet_connected", isConnected.toString());
+    localStorage.setItem("yaako_wallet_connected", isConnected.toString());
   }
 
-  public isConnected(): boolean {
+  private isConnected(): boolean {
     return this._connected && !this._state.isPermanentlyDisconnected;
   }
 
+  // 等待 address 可用 超时则断开连接
+  private waitForAddress(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const checkAddress = setInterval(() => {
+        if (this.getYaako()?.address) {
+          clearInterval(checkAddress);
+          clearTimeout(timeout);
+          resolve();
+        }
+      }, 500);
+
+      const timeout = setTimeout(() => {
+        clearInterval(checkAddress);
+        this.disconnect();
+        reject(new Error("Timeout waiting for address"));
+      }, 2500);
+    });
+  }
+
   public async connect(): Promise<string[]> {
-    if (!this._connected) {
+    const login = this.getYaako()?.login;
+    try {
+      if (login) {
+        Logger.info("Yaako Wallet Login...");
+        const result = await login();
+        console.log("result", result)
+
+        await this.waitForAddress(); // 等待用户完成登录，直到 address 有值
+        Logger.info("Login Success...");
+        this.initializeWallet();
+      }
+  
       // 验证当前账户
-      if (!this.accounts.length || !ethers.isAddress(this.accounts[0])) {
+      if (!this.accounts.length || !Utils.isValidAddress(this.accounts[0])) {
         Logger.warn("No valid account available");
         return [];
       }
+  
+      // 更新连接状态
       this._updateConnectionState(true);
       await this._handleConnect(this.chainId);
       this._handleAccountsChanged(this.accounts);
+  
+      // 注入我们的 ethereum
+      this.injectEthereum();
+  
+      return this.accounts;
+    } catch (error) {
+      Logger.error("Wallet", "Failed to connect:", error);
+      throw new Error(`Failed to connect: ${error || "Unknown error"}`);
     }
-    return this.accounts;
+   
   }
 
   public disconnect(): void {
     Logger.info("Wallet disconnecting...");
+    
+    // 清空地址和账户
+    this.accounts = [];
+    this.selectedAddress = "";
+    this._state.accounts = [];
+
+    // 更新连接状态
     this._updateConnectionState(false);
     this.notifyDisconnect(null);
     this._handleAccountsChanged([]);
     this._handleChainChanged("");
+
+    // this.restoreOriginalEthereum();
   }
 
   public get selectedAccount(): string {
@@ -128,7 +199,7 @@ export class MainWallet implements EthereumProvider {
     }
   }
 
-  // ========== 4. 事件系统 ==========
+  // ========== 3. 事件系统 ==========
   public on(event: string, callback: (...args: any[]) => void): void {
     if (!this.events[event]) {
       this.events[event] = [];
@@ -178,36 +249,36 @@ export class MainWallet implements EthereumProvider {
     this.emit("message", message);
   }
 
-  // ========== 5. 链管理 ==========
-  private setupWalletListener(): void {
-    if (!Wallet() || typeof Wallet() !== "object") {
-      Logger.warn('Wallet', 'Wallet is not initialized');
+  // ========== 4. 链管理 ==========
+  private setupYaakoListener(): void {
+    if (!this.getYaako() || typeof this.getYaako() !== "object") {
+      Logger.warn("YAAKO_WALLET", "YAAKO_WALLET is not initialized");
       return;
     }
 
-    // 定期检查 window.Wallet 的变化
+    // 定期检查 YAAKO_WALLET 的变化
     if (typeof window !== "undefined") {
       setInterval(() => {
         try {
-          const newChainId = window.Wallet?.chainId;
+          const newChainId = this.getYaako()?.chainId;
           if (newChainId && newChainId !== this.chainId) {
             this._handleChainChanged(newChainId);
           }
 
-          const newAddress = window.Wallet?.address;
+          const newAddress = this.getYaako()?.address;
           if (newAddress && newAddress !== this.selectedAddress) {
             this._handleAccountsChanged([newAddress]);
           }
         } catch (error) {
-          Logger.error('Wallet', 'Error checking Wallet changes:', error);
+          Logger.error("YAAKO_WALLET", "Error checking YAAKO_WALLET changes:", error);
         }
-      }, 2000);
+      }, 2500);
     }
   }
 
-  // ========== 6. RPC 请求处理 ==========
+  // ========== 5. RPC 请求处理 ==========
   public async request({ method, params }: { method: string; params?: any[] }): Promise<any> {
-    Logger.debug('Request', `${method}`, params);
+    Logger.debug("Request", `${method}`, params);
     try {
       return await this.handleRequest(method, params);
     } catch (error: any) {
@@ -223,9 +294,7 @@ export class MainWallet implements EthereumProvider {
     switch (method) {
       // 1. 账户相关
       case "eth_requestAccounts":
-        if (!this._connected) {
-          await this.connect();
-        }
+        await this.connect();
         return this.accounts;
       case "eth_accounts":
         return this.getAccounts();
@@ -301,7 +370,7 @@ export class MainWallet implements EthereumProvider {
     }
   }
 
-  // ========== 7. 交易相关方法 ==========
+  // ========== 6. 交易相关方法 ==========
   private async sendTransaction(params?: any[]): Promise<string> {
     try {
       const tx = params?.[0];
@@ -309,7 +378,7 @@ export class MainWallet implements EthereumProvider {
         throw new Error("Transaction must have either 'to' address or 'data' field");
       }
 
-      const hash = await Wallet()?.sendTransaction(tx);
+      const hash = await this.getYaako()?.sendTransaction(tx);
 
       if (!hash) {
         throw new Error("Failed to send transaction");
@@ -317,7 +386,7 @@ export class MainWallet implements EthereumProvider {
 
       return hash;
     } catch (error: any) {
-      Logger.error('Transaction', 'Failed to send transaction:', error);
+      Logger.error("Transaction", "Failed to send transaction:", error);
       throw new Error(`Failed to send transaction: ${error?.message || "Unknown error"}`);
     }
   }
@@ -329,7 +398,7 @@ export class MainWallet implements EthereumProvider {
         throw new Error("Transaction must have either 'to' address or 'data' field");
       }
 
-      const signedTx = await Wallet()?.signTransaction(tx);
+      const signedTx = await this.getYaako()?.signTransaction(tx);
 
       if (!signedTx) {
         throw new Error("Failed to sign transaction");
@@ -337,7 +406,7 @@ export class MainWallet implements EthereumProvider {
 
       return signedTx;
     } catch (error: any) {
-      Logger.error('Transaction', 'Failed to sign transaction:', error);
+      Logger.error("Transaction", "Failed to sign transaction:", error);
       throw new Error(`Failed to sign transaction: ${error?.message || "Unknown error"}`);
     }
   }
@@ -360,7 +429,7 @@ export class MainWallet implements EthereumProvider {
         throw new Error("Message cannot be empty");
       }
 
-      if (!Wallet()?.personalSign) {
+      if (!this.getYaako()?.personalSign) {
         throw new Error("PersonalSign method not implemented");
       }
 
@@ -391,8 +460,8 @@ export class MainWallet implements EthereumProvider {
         throw new Error("Message must be a string");
       }
 
-      Logger.debug('Sign', 'Signing message:', messageToSign);
-      const signature = await Wallet().personalSign({ message: messageToSign, address });
+      Logger.debug("Sign", "Signing message:", messageToSign);
+      const signature = await this.getYaako()?.personalSign({ message: messageToSign, address });
 
       if (!signature) {
         throw new Error("Failed to sign message");
@@ -400,7 +469,7 @@ export class MainWallet implements EthereumProvider {
 
       return signature;
     } catch (error: any) {
-      Logger.error('Sign', 'Error in personal_sign:', error);
+      Logger.error("Sign", "Error in personal_sign:", error);
       throw new Error(`personal_sign failed: ${error.message}`);
     }
   }
@@ -461,12 +530,12 @@ export class MainWallet implements EthereumProvider {
         throw new Error("Invalid verifyingContract address");
       }
 
-      if (!Wallet()?.signTypedData) {
+      if (!this.getYaako()?.signTypedData) {
         throw new Error("Sign typed data method not implemented");
       }
 
-      Logger.debug('Sign', 'Signing typed data:', typedData);
-      const signature = await Wallet().signTypedData(typedData);
+      Logger.debug("Sign", "Signing typed data:", typedData);
+      const signature = await this.getYaako()?.signTypedData(typedData);
 
       if (!signature) {
         throw new Error("Failed to sign typed data");
@@ -474,7 +543,7 @@ export class MainWallet implements EthereumProvider {
 
       return signature;
     } catch (error: any) {
-      Logger.error('Sign', 'Error in eth_signTypedData_v4:', error);
+      Logger.error("Sign", "Error in eth_signTypedData_v4:", error);
       throw new Error(`eth_signTypedData_v4 failed: ${error.message}`);
     }
   }
@@ -499,26 +568,22 @@ export class MainWallet implements EthereumProvider {
         throw new Error("Missing chainId parameter");
       }
 
-      if (!this.chainIds.includes(requestedChainId)) {
-        throw new Error(`Chain ID ${requestedChainId} is not supported`);
-      }
-
-      if (this.chainId === requestedChainId) {
-        Logger.info('Chain', 'Already on chain', requestedChainId);
+      if (this.getYaako()?.chainId === requestedChainId) {
+        Logger.info("Chain", "Already on chain", requestedChainId);
         return `Already on chain ${requestedChainId}`;
       }
 
-      await Wallet()?.switchChain(requestedChainId);
+      await this.getYaako()?.switchChain(requestedChainId);
       this._handleChainChanged(requestedChainId);
 
       return `Switched to chain ${requestedChainId}`;
     } catch (error: any) {
-      Logger.error('Chain', 'Failed to switch chain:', error);
+      Logger.error("Chain", "Failed to switch chain:", error);
       throw new Error(`Failed to switch chain: ${error?.message || "Unknown error"}`);
     }
   }
 
-  // ========== 8. 查询相关方法 ==========
+  // ========== 7. 查询相关方法 ==========
   private async estimateGas(tx?: any): Promise<string> {
     if (!tx?.to || !tx?.from) throw new Error("Missing `to` or `from`");
 
@@ -600,7 +665,7 @@ export class MainWallet implements EthereumProvider {
     }
   }
 
-  // ========== 9. 合约交互相关方法 ==========
+  // ========== 8. 合约交互相关方法 ==========
   private async getCode(params?: any[]): Promise<string> {
     const [address, blockTag = "latest"] = params || [];
     if (!address) throw new Error("Missing address");
@@ -650,7 +715,7 @@ export class MainWallet implements EthereumProvider {
     return await this._provider.send("eth_getLogs", [filter]);
   }
 
-  // ========== 10. 兼容性方法 ==========
+  // ========== 9. 兼容性方法 ==========
   public async send(method: string, params?: any[]): Promise<any> {
     return this.request({ method, params });
   }
@@ -739,5 +804,27 @@ export class MainWallet implements EthereumProvider {
         ],
       },
     ];
+  }
+
+  // ========== Ethereum Provider 管理 ==========
+  private injectEthereum(): void {
+    Object.defineProperty(window, "ethereum", {
+      value: this,
+      writable: true,   
+      configurable: true,
+    });
+    Logger.info("Wallet", "Ethereum provider injected");
+  }
+
+  // 托管 模式不用还原原始 ethereum
+  private restoreOriginalEthereum(): void {
+    if (this.originalEthereum) {
+      Object.defineProperty(window, "ethereum", {
+        value: this.originalEthereum,
+        writable: true,   
+        configurable: true,
+      });
+      Logger.info("Wallet", "Original ethereum provider restored");
+    }
   }
 }

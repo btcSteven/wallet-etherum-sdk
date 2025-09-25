@@ -1,9 +1,9 @@
-import injectWallet from "./core";
+import injectYakoWallet from "./core";
 
-// 在页面加载时注入 your Wallet
+// 在页面加载时注入 Yaako Wallet
 document.addEventListener("DOMContentLoaded", () => {
-  injectWallet();
+  const walletInterface: YAAKOInterface | undefined = undefined;
+  injectYakoWallet(walletInterface);
 });
 
-export default injectWallet;
-
+export default injectYakoWallet;

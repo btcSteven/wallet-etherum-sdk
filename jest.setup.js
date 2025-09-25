@@ -13,7 +13,7 @@ const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
   storageQuota: 10000000,
 });
 
-const mockGAW = {
+const mockYaako = {
   address: '0x1234567890123456789012345678901234567890',
   chainId: '0x1',
   sendTransaction: jest.fn().mockResolvedValue('0x123'),
@@ -29,7 +29,7 @@ const mockGAW = {
 
 Object.defineProperty(global, 'window', {
   value: {
-    GAW: mockGAW,
+    YAAKO: mockYaako,
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
   },
@@ -42,12 +42,12 @@ jest.mock('./src/config', () => ({
     uuid: 'fb9e4f6a-daf8-4b84-a8d3-e13a64e92ab1',
     name: 'Yaako Wallet',
     icon: 'https://static-s3.mtt.xyz/mtt-swap/20250423-142205_15cfe5ccd.png',
-    rdns: 'com.gaw.wallet',
+    rdns: 'com.yaako.wallet',
     description: 'Yaako Wallet - Secure Web3 Wallet',
     version: '1.0.0',
     rpcUrl: 'https://evm-rpc.mtt.network',
     defaultChainId: '0x1',
-    getConfig: () => mockGAW,
+    getConfig: () => mockYaako,
   },
 }));
 

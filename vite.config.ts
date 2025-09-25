@@ -12,15 +12,16 @@ export default defineConfig({
   build: {
     lib: {
       entry: 'src/index.ts',
-      name: 'Yaw',
+      name: 'Yaako',
       fileName: (format) => `yaw.${format}.js`,
+      formats: ['es', 'umd', 'iife'],
     },
     rollupOptions: {
       external: [],
       output: {
         globals: {},
-        banner: `/*! Wallet SDK VSESION ${packageJson.version} */`,
-        footer: `/*! Wallet SDK VSESION ${packageJson.version} */`,
+        banner: `/*! Yaako Wallet SDK VSESION ${packageJson.version} */`,
+        footer: `/*! Yaako Wallet SDK VSESION ${packageJson.version} */`,
       },
     },
   },
